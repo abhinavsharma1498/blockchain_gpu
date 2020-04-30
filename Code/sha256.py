@@ -1,5 +1,7 @@
 import numpy as np
 
+F32 = 0xFFFFFFFF
+
 _k = np.array([	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 				0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 				0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -20,7 +22,7 @@ _k = np.array([	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 def _preprocesspad(s):
 	hex_str = ''
 	for ch in s:
-		temp = hex(ord(ch))[2:]
+		temp = hex(ch)[2:]
 		if len(temp) == 1:
 			temp = '0' + temp
 		hex_str += temp
@@ -44,61 +46,69 @@ def _preprocesspad(s):
 	return blocks.reshape(-1, 16)
 
 def _ROTRIGHT(a, b):
-	return (a >> b) | (a << (32-b))
+	return ((a >> b) | (a << (32-b))) & F32
 
 def _CH(a, b, c):
-	return (a & b) ^ (~a ^ c)
+	return ((a & b) ^ (~a & c)) & F32
 
 def _MAJ(a, b, c):
-	return (a & b) ^ (a & c) ^ (b & c)
+	return ((a & b) ^ (a & c) ^ (b & c)) & F32
 
 def _EP0(x):
-	return _ROTRIGHT(x, 2) ^ _ROTRIGHT(x, 13) ^ _ROTRIGHT(x, 22)
+	return (_ROTRIGHT(x, 2) ^ _ROTRIGHT(x, 13) ^ _ROTRIGHT(x, 22)) & F32
 
 def _EP1(x):
-	return _ROTRIGHT(x, 6) ^ _ROTRIGHT(x, 11) ^ _ROTRIGHT(x, 25)
+	return (_ROTRIGHT(x, 6) ^ _ROTRIGHT(x, 11) ^ _ROTRIGHT(x, 25)) & F32
 
 def _SIG0(x):
-	return _ROTRIGHT(x, 7) ^ _ROTRIGHT(x, 18) ^ (x >> 3)
+	return (_ROTRIGHT(x, 7) ^ _ROTRIGHT(x, 18) ^ (x >> 3)) & F32
 
 def _SIG1(x):
-	return _ROTRIGHT(x, 17) ^ _ROTRIGHT(x, 19) ^ (x >> 10)
+	return (_ROTRIGHT(x, 17) ^ _ROTRIGHT(x, 19) ^ (x >> 10)) & F32
 
-class SHA256:
+class SHA256PY:
 	def __init__(self, m=None):
 		self._h = np.array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 							0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19])
 
 		self._w = np.zeros(64, dtype=np.int64)
+		self.updateSHA256(m)
 
 	def compressSHA256(self):
+		# print('W:', self._w)
+		# print('initial: ', hex(self.a), hex(self.b), hex(self.c), hex(self.d), hex(self.e), hex(self.f), hex(self.g), hex(self.h))
+		self.a, self.b, self.c, self.d, self.e, self.f, self.g, self.h = self._h
 		for i in range(0, 64):
-			t1 = (self.h + _EP1(self.e) + _CH(self.e, self.f, self.g) + _k[i] + self._w[i]) % (1 << 32)
-			t2 = (_EP0(self.a) + _MAJ(self.a, self.b, self.c)) % (1 << 32)
+			t1 = (self.h + _EP1(self.e) + _CH(self.e, self.f, self.g) + _k[i] + self._w[i]) & F32
+			t2 = (_EP0(self.a) + _MAJ(self.a, self.b, self.c)) & F32
 			self.h = self.g
 			self.g = self.f
 			self.f = self.e
-			self.e = (self.d + t1) % (1 << 32)
+			self.e = (self.d + t1) & F32
 			self.d = self.c
 			self.c = self.b
 			self.b = self.a
-			self.a = (t1 + t2) % (1 << 32)
+			self.a = (t1 + t2) & F32
 
-		self._h[0] = (self._h[0] + self.a) % (1 << 32)
-		self._h[1] = (self._h[1] + self.b) % (1 << 32)
-		self._h[2] = (self._h[2] + self.c) % (1 << 32)
-		self._h[3] = (self._h[3] + self.d) % (1 << 32)
-		self._h[4] = (self._h[4] + self.e) % (1 << 32)
-		self._h[5] = (self._h[5] + self.f) % (1 << 32)
-		self._h[6] = (self._h[6] + self.g) % (1 << 32)
-		self._h[7] = (self._h[7] + self.h) % (1 << 32)
+			# print('t='+str(i)+':', hex(self.a), hex(self.b), hex(self.c), hex(self.d), hex(self.e), hex(self.f), hex(self.g), hex(self.h))
+
+		self._h[0] = (self._h[0] + self.a) & F32
+		self._h[1] = (self._h[1] + self.b) & F32
+		self._h[2] = (self._h[2] + self.c) & F32
+		self._h[3] = (self._h[3] + self.d) & F32
+		self._h[4] = (self._h[4] + self.e) & F32
+		self._h[5] = (self._h[5] + self.f) & F32
+		self._h[6] = (self._h[6] + self.g) & F32
+		self._h[7] = (self._h[7] + self.h) & F32
 
 	def updateSHA256(self, m):
+		if not m.any():
+			return
+
 		for j in range(len(m)):
-			self.a, self.b, self.c, self.d, self.e, self.f, self.g, self.h = self._h
 			self._w[:16] = m[j]
 			for i in range(16, 64):
-				self._w[i] = (_SIG1(self._w[i-2]) + self._w[i-7] + _SIG0(self._w[i-15]) + self._w[i-16]) % (1 << 32)
+				self._w[i] = (_SIG1(self._w[i-2]) + self._w[i-7] + _SIG0(self._w[i-15]) + self._w[i-16]) & F32
 			self.compressSHA256()
 
 	def hexdigest(self):
@@ -106,3 +116,5 @@ class SHA256:
 		for num in self._h:
 			hash_val += hex(num)[2:]
 		return hash_val
+
+print(SHA256PY(_preprocesspad('abc'.encode())).hexdigest())
