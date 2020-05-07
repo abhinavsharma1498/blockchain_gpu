@@ -1,14 +1,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
 #include <cuda.h>
 #include "sha256.cuh"
 #include <dirent.h>
 #include <ctype.h>
 
+// __const__ BYTE * buff;
 
-__global__ void sha256_cuda(JOB ** jobs, int n) {
+
+__device__ bool checkZeroPadding(unsigned char* sha, uint8_t difficulty) {
+
+	bool isOdd = difficulty % 2 != 0;
+	uint8_t max = (difficulty / 2) + 1;
+
+	/*
+		Odd : 00 00 01 need to check 0 -> 2
+		Even : 00 00 00 1 need to check 0 -> 3
+		odd : 5 / 2 = 2 => 2 + 1 = 3
+		even : 6 / 2 = 3 => 3 + 1 = 4
+	*/
+	for (uint8_t cur_byte = 0; cur_byte < max; ++cur_byte) {
+		uint8_t b = sha[cur_byte];
+		if (cur_byte < max - 1) { // Before the last byte should be all zero
+			if(b != 0) return false;
+		}else if (isOdd) {
+			if (b > 0x0F || b == 0) return false;
+		}
+		else if (b <= 0x0f) return false;
+		
+	}
+
+	return true;
+
+}
+
+__global__ void sha256_cuda(JOB ** jobs, int n, int *g_found, int *g_nonce) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	// perform sha256 calculation here
 	if (i < n){
@@ -16,6 +45,10 @@ __global__ void sha256_cuda(JOB ** jobs, int n) {
 		sha256_init(&ctx);
 		sha256_update(&ctx, jobs[i]->data, jobs[i]->size);
 		sha256_final(&ctx, jobs[i]->digest);
+
+		if(checkZeroPadding(jobs[i]->digest, 4) && atomicExch(g_found, 1) == 0) {
+			memcpy(g_nonce, &i, sizeof(i));
+		}
 	}
 }
 
@@ -24,10 +57,10 @@ void pre_sha256() {
 	checkCudaErrors(cudaMemcpyToSymbol(dev_k, host_k, sizeof(host_k), 0, cudaMemcpyHostToDevice));
 }
 
-void runJobs(JOB ** jobs, int n){
+void runJobs(JOB ** jobs, int n, int* g_found, int *g_nonce){
 	int blockSize = 4;
 	int numBlocks = (n + blockSize - 1) / blockSize;
-	sha256_cuda <<< numBlocks, blockSize >>> (jobs, n);
+	sha256_cuda <<< numBlocks, blockSize >>> (jobs, n, g_found, g_nonce);
 }
 
 
@@ -47,29 +80,50 @@ JOB * JOB_init(BYTE * data, long size) {
 
 int main(int argc, char **argv) {
 	int i = 0, n = 0;
-	unsigned long temp = 3;
 	BYTE * buff;
 	JOB ** jobs;
-	char inp[] = "abc";
-// 	checkCudaErrors(cudaMallocManaged(&buff, (temp+1)*sizeof(char)));
-// 	memcpy(buff, inp, temp+1);
-//     cudaMemcpyToSymbol(buff, inp, sizeof(inp), 0, cudaMemcpyHostToDevice);
+// 	std::string inp = "abc";
+	int *g_found;
+	int *g_nonce;
+	checkCudaErrors(cudaMallocManaged(&g_found, sizeof(int)));
+	checkCudaErrors(cudaMallocManaged(&g_nonce, sizeof(int)));
+	*g_found = 0;
+	char inp[512] = "abc";
 
 	n = 10;
 	checkCudaErrors(cudaMallocManaged(&jobs, n * sizeof(JOB *)));
 
 	while (i < n) {
-        checkCudaErrors(cudaMallocManaged(&buff, (temp)*sizeof(char)));
-        cudaMemcpyToSymbol(buff, inp, sizeof(inp), 0, cudaMemcpyHostToDevice);
-		jobs[i++] = JOB_init(buff, temp);
+		int tmp = i, digits = 0;
+		while(tmp > 0)
+		{
+			tmp /= 10;
+			++digits;
+		}
+		tmp = i;
+		digits += strlen(inp);
+		inp[digits--] = '\0';
+		while(tmp > 0)
+		{
+			inp[digits--] = '0' + tmp%10;
+			tmp /= 10;
+		}
+		int size = strlen(inp);
+        printf("%s\n", inp);
+        checkCudaErrors(cudaMallocManaged(&buff, (size+1)*sizeof(char)));
+        memcpy(buff, inp, sizeof(inp));
+//         cudaMemcpyToSymbol(&buff, &inp, sizeof(inp), 0, cudaMemcpyHostToDevice);
+		printf("%s\n", buff);
+        jobs[i++] = JOB_init(buff, size+1);
 	}
 
 	pre_sha256();
-	runJobs(jobs, n);
+	runJobs(jobs, n, g_found, g_nonce);
 
 	cudaDeviceSynchronize();
 // 	free(buff);
 	print_jobs(jobs, n);
 	cudaDeviceReset();
+//     printf("%d\n", *g_nonce);
 	return 0;
 }
