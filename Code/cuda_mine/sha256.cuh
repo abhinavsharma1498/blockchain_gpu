@@ -28,12 +28,16 @@
 typedef unsigned char BYTE;             // 8-bit byte
 typedef uint32_t  WORD;             // 32-bit word, change to "long" for 16-bit machines
 
-typedef struct JOB {
-	BYTE * data;
-	unsigned long long size;
-	BYTE digest[64];
-}JOB;
-
+char * hash_to_string(BYTE * buff) {
+	char * string = (char *)malloc(70);
+	int k, i;
+	for (i = 0, k = 0; i < 32; i++, k+= 2)
+	{
+		sprintf(string + k, "%.2x", buff[i]);
+	}
+	string[64] = 0;
+	return string;
+}
 
 typedef struct {
 	BYTE data[64];
@@ -56,31 +60,10 @@ static const WORD host_k[64] = {
 };
 
 /*********************** FUNCTION DECLARATIONS **********************/
-char * print_sha(BYTE * buff);
 __device__ void sha256_init(SHA256_CTX *ctx);
 __device__ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len);
 __device__ void sha256_final(SHA256_CTX *ctx, BYTE hash[]);
 
-
-char * hash_to_string(BYTE * buff) {
-	char * string = (char *)malloc(70);
-	int k, i;
-	for (i = 0, k = 0; i < 32; i++, k+= 2)
-	{
-		sprintf(string + k, "%.2x", buff[i]);
-	}
-	string[64] = 0;
-	return string;
-}
-
-void print_job(JOB * j){
-	printf("%s \n", hash_to_string(j->digest));
-}
-
-void print_jobs(JOB ** jobs, int n) {
-	for (int i = 0; i < n; i++)
-        print_job(jobs[i]);
-}
 
 __device__ void mycpy12(uint32_t *d, const uint32_t *s) {
 #pragma unroll 3

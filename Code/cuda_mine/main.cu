@@ -8,7 +8,7 @@
 #include <dirent.h>
 #include <ctype.h>
 
-// __const__ BYTE * buff;
+#define DIFFICULTY 2
 
 
 __device__ bool checkZeroPadding(unsigned char* sha, uint8_t difficulty) {
@@ -37,17 +37,58 @@ __device__ bool checkZeroPadding(unsigned char* sha, uint8_t difficulty) {
 
 }
 
-__global__ void sha256_cuda(JOB ** jobs, int n, int *g_found, int *g_nonce) {
+__global__ void sha256_cuda(BYTE* buff, int n, int *g_found, int *g_nonce, BYTE* g_out, int nonce, size_t size) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	BYTE digest[64];
+	BYTE data[1024];
+	for (int i = 0; i < 64; i++)
+	{
+		digest[i] = 0xff;
+	}
+	
 	// perform sha256 calculation here
 	if (i < n){
+		nonce += i;
+
+		int tmp = nonce, digits = 0;
+		while(tmp > 0)
+		{
+			++digits;
+			tmp /= 10;
+		}
+		tmp = nonce;
+		int j = digits + size;
+		data[j--] = '\0';
+		while(tmp > 0)
+		{
+			data[j--] = '0' + tmp%10;
+			tmp /= 10;
+		}
+		while(j >= 0)
+		{
+			data[j] = buff[j];
+			j--;
+		}
+		size += digits;
+
 		SHA256_CTX ctx;
 		sha256_init(&ctx);
-		sha256_update(&ctx, jobs[i]->data, jobs[i]->size);
-		sha256_final(&ctx, jobs[i]->digest);
+		sha256_update(&ctx, data, size);
+		sha256_final(&ctx, digest);
 
-		if(checkZeroPadding(jobs[i]->digest, 4) && atomicExch(g_found, 1) == 0) {
-			memcpy(g_nonce, &i, sizeof(i));
+		if(checkZeroPadding(digest, DIFFICULTY) && atomicExch(g_found, 1) == 0) {
+			*g_nonce = nonce;
+			memcpy(g_out, digest, sizeof(digest));
+			printf("%d\n", *g_nonce);
+		    for (j = 0; j < 32; j++)
+			{
+				printf("%.2x", digest[j]);
+			}
+			for (j = 0; j < 32; j++)
+			{
+				printf("%.2x", g_out[j]);
+			}
+			printf("\n");
 		}
 	}
 }
@@ -57,73 +98,41 @@ void pre_sha256() {
 	checkCudaErrors(cudaMemcpyToSymbol(dev_k, host_k, sizeof(host_k), 0, cudaMemcpyHostToDevice));
 }
 
-void runJobs(JOB ** jobs, int n, int* g_found, int *g_nonce){
+void runJobs(BYTE* buff, int n, int* g_found, int *g_nonce, BYTE* g_out, size_t size){
 	int blockSize = 4;
 	int numBlocks = (n + blockSize - 1) / blockSize;
-	sha256_cuda <<< numBlocks, blockSize >>> (jobs, n, g_found, g_nonce);
-}
-
-
-JOB * JOB_init(BYTE * data, long size) {
-	JOB * j;
-	checkCudaErrors(cudaMallocManaged(&j, sizeof(JOB)));	//j = (JOB *)malloc(sizeof(JOB));
-	checkCudaErrors(cudaMallocManaged(&(j->data), size));
-	j->data = data;
-	j->size = size;
-	for (int i = 0; i < 64; i++)
+	int nonce = 1;
+	while(!(*g_found))
 	{
-		j->digest[i] = 0xff;
+		sha256_cuda <<< numBlocks, blockSize >>> (buff, n, g_found, g_nonce, g_out, nonce, size);
+		nonce += numBlocks;
 	}
-	return j;
 }
 
 
 int main(int argc, char **argv) {
-	int i = 0, n = 0;
+	cudaSetDevice(0);
+	int n = 10;
 	BYTE * buff;
-	JOB ** jobs;
-// 	std::string inp = "abc";
+	
 	int *g_found;
 	int *g_nonce;
+	BYTE *g_out;
 	checkCudaErrors(cudaMallocManaged(&g_found, sizeof(int)));
 	checkCudaErrors(cudaMallocManaged(&g_nonce, sizeof(int)));
+	checkCudaErrors(cudaMallocManaged(&g_out, 64*sizeof(BYTE)));
 	*g_found = 0;
-	char inp[512] = "abc";
 
-	n = 10;
-	checkCudaErrors(cudaMallocManaged(&jobs, n * sizeof(JOB *)));
-
-	while (i < n) {
-		int tmp = i, digits = 0;
-		while(tmp > 0)
-		{
-			tmp /= 10;
-			++digits;
-		}
-		tmp = i;
-		digits += strlen(inp);
-		inp[digits--] = '\0';
-		while(tmp > 0)
-		{
-			inp[digits--] = '0' + tmp%10;
-			tmp /= 10;
-		}
-		int size = strlen(inp);
-        printf("%s\n", inp);
-        checkCudaErrors(cudaMallocManaged(&buff, (size+1)*sizeof(char)));
-        memcpy(buff, inp, sizeof(inp));
-//         cudaMemcpyToSymbol(&buff, &inp, sizeof(inp), 0, cudaMemcpyHostToDevice);
-		printf("%s\n", buff);
-        jobs[i++] = JOB_init(buff, size+1);
-	}
+	char inp[] = "abc";
+	checkCudaErrors(cudaMallocManaged(&buff, sizeof(inp)+32));
+	memcpy(buff, inp, sizeof(inp));
 
 	pre_sha256();
-	runJobs(jobs, n, g_found, g_nonce);
+	runJobs(buff, n, g_found, g_nonce, g_out, sizeof(inp));
 
 	cudaDeviceSynchronize();
-// 	free(buff);
-	print_jobs(jobs, n);
+    printf("%d\n", *g_nonce);
+    printf("%s\n", hash_to_string(g_out));
 	cudaDeviceReset();
-//     printf("%d\n", *g_nonce);
 	return 0;
 }
