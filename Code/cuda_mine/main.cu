@@ -57,7 +57,7 @@ __global__ void sha256_cuda(BYTE* buff, int n, int *g_found, int *g_nonce, BYTE*
 			tmp /= 10;
 		}
 		tmp = nonce;
-		int j = digits + size;
+		int j = digits + size-1;
 		data[j--] = '\0';
 		while(tmp > 0)
 		{
@@ -82,11 +82,7 @@ __global__ void sha256_cuda(BYTE* buff, int n, int *g_found, int *g_nonce, BYTE*
 			printf("%d\n", *g_nonce);
 		    for (j = 0; j < 32; j++)
 			{
-				printf("%.2x", digest[j]);
-			}
-			for (j = 0; j < 32; j++)
-			{
-				printf("%.2x", g_out[j]);
+				printf("%.2x", data[j]);
 			}
 			printf("\n");
 		}
