@@ -11,7 +11,7 @@ Any reasonable CPU: (For CPU as well as GPU mining)
 IF YOU INTEND TO MINE ON GPU, NVIDIA CARD WITH CUDA IS REQUIRED.
 (Tested with Nvidia GeFroce 920M, Nvidia Tesla K80)
 
-Latest drivers are needed.
+Drivers version compatible with CUDA version required.
 
 # Libraries required
 Python headers:
