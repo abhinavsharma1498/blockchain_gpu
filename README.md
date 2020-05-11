@@ -42,9 +42,9 @@ Now, from that directory, run the following commands:
   python3 crypto.py -p PORT_NO [-d DIFFICULTY | -D DEVICE]
 
 Desctiption of parameters:
-  -p: Define the port number to run the server on, REQUIRED
-  -d: Difficulty of mining, DEFAULT = 2
-  -D: Device on which you intend to mine, DEFAULT = 'CPU', accepted options = 'CPU' | 'GPU'
+  1. -p: Define the port number to run the server on, REQUIRED
+  2. -d: Difficulty of mining, DEFAULT = 2
+  3. -D: Device on which you intend to mine, DEFAULT = 'CPU', accepted options = 'CPU' | 'GPU'
 
 # Project Contributers
 Abhinav Sharma
