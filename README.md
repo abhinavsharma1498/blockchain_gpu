@@ -1,5 +1,5 @@
 # Blockchain Mining using GPU
-The project aims to provide minign solution for CPU as well as GPU.
+The project aims to provide mining solution for CPU as well as GPU.
 
 # Build Status
 Successful build
