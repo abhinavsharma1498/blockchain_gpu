@@ -1,7 +1,7 @@
 # Blockchain Mining using GPU
 The project aims to provide minign solution for CPU as well as GPU.
 
-# Build Statues
+# Build Status
 Successful build
 
 # Hardware requirements
@@ -35,7 +35,7 @@ C++ headers:
 To build the GPU Code, run the following command:
   nvcc main.cu -o run
  
-#  Exectuing the program
+#  Executing the program
 Place blockchain.py, crypto.py and run in the same folder.
 Now, from that directory, run the following commands:
 
@@ -46,7 +46,7 @@ Desctiption of parameters:
   -d: Difficulty of mining, DEFAULT = 2
   -D: Device on which you intend to mine, DEFAULT = 'CPU', accepted options = 'CPU' | 'GPU'
 
-# Prohect Contributers
+# Project Contributers
 Abhinav Sharma
 Rohan Deoli
 Amish Tandon
