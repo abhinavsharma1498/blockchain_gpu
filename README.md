@@ -13,6 +13,9 @@ IF YOU INTEND TO MINE ON GPU, NVIDIA CARD WITH CUDA IS REQUIRED.
 
 Drivers version compatible with CUDA version required.
 
+Installation Guide for CUDA:
+https://docs.nvidia.com/deploy/cuda-compatibility/index.html#cuda-application-compatibility
+
 # Libraries required
 Python headers:
   1. flask
