@@ -18,10 +18,13 @@ cmd_args = parse.parse_args()
 
 if cmd_args.difficulty:
 	DIFFICULTY = cmd_args.difficulty
+if not (-1 < DIFFICULTY < 32):
+	printf("Enter a valid difficulty. Between [0,31]")
+	exit(0)
 
 PORT = cmd_args.port
-if PORT < 1024:
-	print('Invalid port number')
+if not (1024 < PORT < 65536):
+	print('Invalid port number. Between [1025,65535]')
 	exit(0)
 
 if cmd_args.device:

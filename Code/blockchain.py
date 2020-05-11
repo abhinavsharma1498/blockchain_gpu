@@ -125,7 +125,7 @@ class Blockchain:
 			while nonce == 0:
 				block['timestamp'] = str(datetime.now())
 				encoded_block = self.create_dump_mine(block)
-				args = ('/home/rohan/Downloads/wed6/run', encoded_block, str(DIFFICULTY))
+				args = ('./run', encoded_block, str(DIFFICULTY))
 				
 				#	Start mining using the executable file
 				process = Popen(args, stdout=PIPE)
