@@ -50,10 +50,10 @@ Desctiption of parameters:
   3. -D: Device on which you intend to mine, DEFAULT = 'CPU', accepted options = 'CPU' | 'GPU'
 
 # Project Contributers
-Abhinav Sharma
-Rohan Deoli
-Amish Tandon
-Ankit Jangwan
+1. Abhinav Sharma
+2. Rohan Deoli
+3. Amish Tandon
+4. Ankit Jangwan
 
 # Project Guide
 Akshay Rajput sir
