@@ -59,7 +59,7 @@ def mine_block():
 	prev_proof = prev_block['proof']
 	prev_hash = blockchain.hash(prev_block)
 	
-	blockchain.add_transaction(sender = node_address, reciever = 'Abhinav', amount = 10)	#	Taking the fees of transaction
+	blockchain.add_transaction(sender = node_address, reciever = 'A', amount = 10)	#	Taking the fees of transaction
 	proof, timestamp = blockchain.proof_of_work(prev_hash, DEVICE, DIFFICULTY)
 	block = blockchain.create_block(proof = proof, prev_hash = prev_hash, timestamp = timestamp)
 	
@@ -124,14 +124,14 @@ def add_transaction():
 	'''
 
 	json = request.get_json()
-	transaction_keys = ['sender', 'reciever', 'amount']
+	transaction_keys = ['sender', 'receiver', 'amount']
 	
 	if not all (key in json for key in transaction_keys):
 		response = {'message': 'Some elements of the transaction are missing.'}
 		
 		return jsonify(response), 400
 	
-	index = blockchain.add_transaction(json['sender'], json['reciever'], json['amount'])
+	index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'])
 	response = {'message': f'Your transaction will be added to block {index}',}
 	
 	return jsonify(response), 201
@@ -179,7 +179,7 @@ def replace_chain():
 		HTTP SUCCESS OK/ERROR code -> int
 	'''
 	
-	if blockchain.replace_chain():
+	if blockchain.replace_chain(DIFFICULTY):
 		response = {'message': 'The node had different chains, so the chain was replaced by largest one.',
 					'new_chain': blockchain.chain}
 	else:

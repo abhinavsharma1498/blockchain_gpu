@@ -59,11 +59,14 @@ class Blockchain:
 			The string form of the block -> str
 		'''
 		
-		string = '{} {} {} {} {}'.format(	block['index'],
-											block['timestamp'],
-											block['previous_hash'],
-											block['transactions'],
-											block['proof'])
+		string = '{} {} {}'.format(	block['index'],
+									block['timestamp'],
+									block['previous_hash'])
+		for transaction in block['transactions']:
+			string += ' {} {} {}'.format(transaction['sender'],
+										transaction['reciever'],
+										transaction['amount'])
+		string += ' {}'.format(block['proof'])
 		
 		return string
 
@@ -78,10 +81,14 @@ class Blockchain:
 			The string form of the block -> str
 		'''
 
-		string = '{} {} {} {} '.format(	block['index'],
-										block['timestamp'],
-										block['previous_hash'],
-										block['transactions'])
+		string = '{} {} {}'.format(	block['index'],
+									block['timestamp'],
+									block['previous_hash'])
+		for transaction in block['transactions']:
+			string += ' {} {} {}'.format(transaction['sender'],
+										transaction['reciever'],
+										transaction['amount'])
+		string += ' '
 		
 		return string
 
@@ -189,7 +196,8 @@ class Blockchain:
 				return False
 			
 			new_hash = self.hash(block)
-			if new_hash[:DIFFICULTY] != '0'*DIFFICULTY:	# Checking the proof of work
+			if new_hash[:int(DIFFICULTY)] != '0'*int(DIFFICULTY):	# Checking the proof of work
+				print(new_hash[:int(DIFFICULTY)], '0'*int(DIFFICULTY))
 				return False
 			
 			prev_block = block
@@ -229,7 +237,7 @@ class Blockchain:
 		parsed_url = urlparse(address)
 		self.nodes.add(parsed_url.netloc)
 
-	def replace_chain(self):
+	def replace_chain(self, DIFFICULTY):
 		'''
 		Ping each node for its version of chain and decided whether to update own chain or not.
 
@@ -248,7 +256,7 @@ class Blockchain:
 			if response.status_code == 200:
 				length = response.json()['length']
 				chain = response.json()['chain']
-				if length > max_length and self.is_chain_valid(chain):
+				if length > max_length and self.is_chain_valid(DIFFICULTY):
 					max_length = length
 					longest_chain = chain
 		
